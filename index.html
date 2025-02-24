@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>4-Sided Pong</title>
+    <style>
+        body {
+            margin: 0;
+            background: black;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        canvas {
+            border: 2px solid white;
+        }
+        .score {
+            position: absolute;
+            color: white;
+            font-size: 30px;
+            font-family: Arial, sans-serif;
+        }
+        .score-top { top: 10px; left: 50%; transform: translateX(-50%); }
+        .score-right { top: 50%; right: 10px; transform: translateY(-50%); }
+        .score-bottom { bottom: 10px; left: 50%; transform: translateX(-50%); }
+        .score-left { top: 50%; left: 10px; transform: translateY(-50%); }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <div class="score score-top" id="scoreTop">Top: 10</div>
+    <div class="score score-right" id="scoreRight">Right: 10</div>
+    <div class="score score-bottom" id="scoreBottom">Bottom: 10</div>
+    <div class="score score-left" id="scoreLeft">Left: 10</div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        // Set a fixed width and height for the canvas
+        const canvasWidth = 800; // Set width
+        const canvasHeight = 600; // Set height
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+
+        const paddleWidth = 100, paddleHeight = 10, speed = 5;
+        const ballSize = 15; // Slightly bigger balls
+
+        let players = {
+            top: { x: canvasWidth / 2 - paddleWidth / 2, y: 20, score: 10, keys: { left: 'a', right: 'd' } },
+            right: { x: canvasWidth - 30, y: canvasHeight / 2 - paddleWidth / 2, score: 10, keys: { up: 'ArrowUp', down: 'ArrowDown' } },
+            bottom: { x: canvasWidth / 2 - paddleWidth / 2, y: canvasHeight - 30, score: 10, keys: { left: 'j', right: 'l' } },
+            left: { x: 20, y: canvasHeight / 2 - paddleWidth / 2, score: 10, keys: { up: 'f', down: 'h' } }
+        };
+
+        let balls = [
+            { x: canvasWidth / 3, y: canvasHeight / 3, dx: 4, dy: 3, trail: [] },
+            { x: canvasWidth * 2 / 3, y: canvasHeight * 2 / 3, dx: -3, dy: -4, trail: [] }
+        ];
+
+        let keysPressed = {};
+
+        window.addEventListener("keydown", (e) => keysPressed[e.key] = true);
+        window.addEventListener("keyup", (e) => delete keysPressed[e.key]);
+
+        function movePaddles() {
+            if (players.top.score > 0) {
+                if (keysPressed[players.top.keys.left] && players.top.x > 0) players.top.x -= speed;
+                if (keysPressed[players.top.keys.right] && players.top.x + paddleWidth < canvasWidth) players.top.x += speed;
+            }
+            if (players.right.score > 0) {
+                if (keysPressed[players.right.keys.up] && players.right.y > 0) players.right.y -= speed;
+                if (keysPressed[players.right.keys.down] && players.right.y + paddleWidth < canvasHeight) players.right.y += speed;
+            }
+            if (players.bottom.score > 0) {
+                if (keysPressed[players.bottom.keys.left] && players.bottom.x > 0) players.bottom.x -= speed;
+                if (keysPressed[players.bottom.keys.right] && players.bottom.x + paddleWidth < canvasWidth) players.bottom.x += speed;
+            }
+            if (players.left.score > 0) {
+                if (keysPressed[players.left.keys.up] && players.left.y > 0) players.left.y -= speed;
+                if (keysPressed[players.left.keys.down] && players.left.y + paddleWidth < canvasHeight) players.left.y += speed;
+            }
+        }
+
+        function updateBalls() {
+            balls.forEach(ball => {
+                ball.x += ball.dx;
+                ball.y += ball.dy;
+
+                // Ball trail effect
+                ball.trail.push({ x: ball.x, y: ball.y });
+                if (ball.trail.length > 10) ball.trail.shift();
+
+                if (ball.x <= 0 || ball.x + ballSize >= canvasWidth) ball.dx *= -1;
+                if (ball.y <= 0 || ball.y + ballSize >= canvasHeight) ball.dy *= -1;
+
+                if (ball.y <= players.top.y + paddleHeight && ball.x > players.top.x && ball.x < players.top.x + paddleWidth) ball.dy *= -1;
+                if (ball.x + ballSize >= players.right.x && ball.y > players.right.y && ball.y < players.right.y + paddleWidth) ball.dx *= -1;
+                if (ball.y + ballSize >= players.bottom.y && ball.x > players.bottom.x && ball.x < players.bottom.x + paddleWidth) ball.dy *= -1;
+                if (ball.x <= players.left.x + paddleHeight && ball.y > players.left.y && ball.y < players.left.y + paddleWidth) ball.dx *= -1;
+
+                if (ball.y <= 0 && players.top.score > 0) players.top.score--;
+                if (ball.x + ballSize >= canvasWidth && players.right.score > 0) players.right.score--;
+                if (ball.y + ballSize >= canvasHeight && players.bottom.score > 0) players.bottom.score--;
+                if (ball.x <= 0 && players.left.score > 0) players.left.score--;
+            });
+        }
+
+        function drawGame() {
+            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+            // Draw paddles
+            Object.values(players).forEach(p => {
+                if (p.score > 0) {
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(p.x, p.y, p === players.right || p === players.left ? paddleHeight : paddleWidth, p === players.right || p === players.left ? paddleWidth : paddleHeight);
+                }
+            });
+
+            // Draw ball with trail glow effect
+            balls.forEach(ball => {
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
+                ball.trail.forEach((pos, index) => {
+                    ctx.beginPath();
+                    const opacity = (index + 1) / ball.trail.length;
+                    ctx.arc(pos.x, pos.y, ballSize / 2, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(255, 0, 0, ${opacity})`;
+                    ctx.fill();
+                    ctx.closePath();
+                });
+
+                ctx.beginPath();
+                ctx.arc(ball.x, ball.y, ballSize / 2, 0, Math.PI * 2);
+                ctx.fillStyle = 'red';
+                ctx.fill();
+                ctx.closePath();
+            });
+
+            // Update scores on the page
+            document.getElementById('scoreTop').textContent = `Top: ${players.top.score}`;
+            document.getElementById('scoreRight').textContent = `Right: ${players.right.score}`;
+            document.getElementById('scoreBottom').textContent = `Bottom: ${players.bottom.score}`;
+            document.getElementById('scoreLeft').textContent = `Left: ${players.left.score}`;
+        }
+
+        function gameLoop() {
+            movePaddles();
+            updateBalls();
+            drawGame();
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
+</body>
+</html>
